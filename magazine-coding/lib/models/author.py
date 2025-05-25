@@ -43,3 +43,26 @@ class Author:
     def add_article(self, magazine, title):
         from lib.models.article import Article
         return Article(title=title, author_id=self.id, magazine_id=magazine.id).save()
+    def topic_areas(self):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT m.category FROM magazines m
+            JOIN articles a ON m.id = a.magazine_id
+            WHERE a.author_id = ?
+        """, (self.id,))
+        return [row['category'] for row in cursor.fetchall()]
+    def contributing_authors(self):
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT authors.*, COUNT(articles.id) as article_count
+            FROM authors
+            JOIN articles ON authors.id = articles.author_id
+            WHERE articles.magazine_id = ?
+            GROUP BY authors.id
+            HAVING article_count > 2
+        """, (self.id,))
+        return cursor.fetchall()
+
+
