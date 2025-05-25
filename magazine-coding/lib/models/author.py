@@ -1,4 +1,4 @@
-from db.connection import get_connection
+from lib.db.connection import get_connection
 
 class Author:
     def __init__(self, id=None, name=None):
@@ -18,18 +18,28 @@ class Author:
         conn.commit()
         return self
 
-    def articles(self):
+    @classmethod
+    def find_by_name(cls, name):
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM articles WHERE author_id=?", (self.id,))
-        return cursor.fetchall()
+        cursor.execute("SELECT * FROM authors WHERE name=?", (name,))
+        row = cursor.fetchone()
+        return cls(id=row["id"], name=row["name"]) if row else None
+
+
+    def articles(self):
+        from lib.models.article import Article
+        return Article.find_by_author(self.id)
 
     def magazines(self):
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT DISTINCT magazines.* FROM magazines
-            JOIN articles ON magazines.id = articles.magazine_id
-            WHERE articles.author_id = ?
+            SELECT DISTINCT m.* FROM magazines m
+            JOIN articles a ON m.id = a.magazine_id
+            WHERE a.author_id = ?
         """, (self.id,))
         return cursor.fetchall()
+    def add_article(self, magazine, title):
+        from lib.models.article import Article
+        return Article(title=title, author_id=self.id, magazine_id=magazine.id).save()
